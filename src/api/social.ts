@@ -14,6 +14,20 @@ export type FriendStats = {
   email?: string;
 };
 
+type FriendStatsResponse = {
+  profile?: {
+    userId?: string;
+    name?: string;
+    email?: string;
+  };
+  stats?: {
+    todayStudyTime?: number;
+    weeklyStudyTime?: number;
+    monthlyStudyTime?: number;
+    totalStudyTime?: number;
+  };
+};
+
 /**
  * 친구 공부 통계 조회 (GET /api/social/{userId}/stats)
  */
@@ -38,11 +52,28 @@ export const getFriendStats = async (userId: string): Promise<{
 
   try {
     const endpoint = API_ENDPOINTS.SOCIAL.STATS.replace(':user_id', userId);
-    const res = await api.get<FriendStats>(endpoint, true);
+    const res = await api.get<FriendStats | FriendStatsResponse>(endpoint, true);
     if (!res.success) {
       return { success: false, error: res.error || '친구 공부 시간을 불러올 수 없습니다.' };
     }
-    return res;
+    const data = res.data as FriendStats | FriendStatsResponse | undefined;
+    if (data && 'profile' in data) {
+      const profile = data.profile ?? {};
+      const stats = data.stats ?? {};
+      return {
+        success: true,
+        data: {
+          userId: profile.userId || userId,
+          name: profile.name,
+          email: profile.email,
+          todayTime: stats.todayStudyTime ?? 0,
+          weeklyTime: stats.weeklyStudyTime ?? 0,
+          monthlyTime: stats.monthlyStudyTime ?? 0,
+          totalTime: stats.totalStudyTime ?? 0,
+        },
+      };
+    }
+    return res as { success: boolean; data?: FriendStats; error?: string };
   } catch (e: any) {
     return { success: false, error: e?.message || '친구 공부 시간을 불러올 수 없습니다.' };
   }

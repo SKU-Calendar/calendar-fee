@@ -14,7 +14,7 @@ export const USE_MOCK_API = false;
 // 백엔드 서버 URL 설정 (USE_MOCK_API가 false일 때 사용)
 // ========================================
 // 배포된 백엔드 서버 주소
-export const API_BASE_URL = 'https://calendar-be-d0z4.onrender.com/api';
+export const API_BASE_URL = 'https://calendar-be-v2.onrender.com/api';
 
 // 환경 변수로 설정하려면 아래처럼 사용할 수도 있습니다:
 // export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';

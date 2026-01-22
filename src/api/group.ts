@@ -33,6 +33,12 @@ type GroupMemberResponseDto = {
   email?: string;
   userName?: string;
   userEmail?: string;
+  profile?: {
+    userId?: string;
+    id?: string;
+    name?: string;
+    email?: string;
+  };
 };
 
 function mapGroup(d: GroupResponseDto | undefined | null): Group | null {
@@ -50,12 +56,13 @@ function mapGroup(d: GroupResponseDto | undefined | null): Group | null {
 }
 
 function mapGroupMember(d: GroupMemberResponseDto | undefined | null, groupId: string): GroupMember | null {
-  if (!d || d.userId == null) return null;
-  const name = d.name ?? d.userName;
-  const email = d.email ?? d.userEmail ?? '';
+  const resolvedUserId = d?.userId ?? d?.profile?.userId ?? d?.profile?.id;
+  if (!d || resolvedUserId == null) return null;
+  const name = d.name ?? d.userName ?? d.profile?.name;
+  const email = d.email ?? d.userEmail ?? d.profile?.email ?? '';
   return {
-    id: String(d.userId),
-    userId: String(d.userId),
+    id: String(resolvedUserId),
+    userId: String(resolvedUserId),
     groupId,
     email,
     name: name ?? undefined,

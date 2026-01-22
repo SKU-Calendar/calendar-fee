@@ -271,6 +271,7 @@ const GroupScreen: React.FC = () => {
       if (response.success && response.data) {
         setMembers(response.data);
         setMembersModalVisible(true);
+        void enrichMembersWithProfiles(response.data);
       } else {
         Alert.alert('오류', response.error || '멤버 목록 조회에 실패했습니다.');
       }
@@ -289,6 +290,38 @@ const GroupScreen: React.FC = () => {
       return `${hours}시간 ${minutes > 0 ? `${minutes}분` : ''}`;
     }
     return `${minutes}분`;
+  };
+
+  const getMemberDisplayName = (member: GroupMember): string => {
+    return member.name || member.email || member.userId || '알 수 없음';
+  };
+
+  const enrichMembersWithProfiles = async (list: GroupMember[]) => {
+    if (!list.length) return;
+    try {
+      const enriched = await Promise.all(
+        list.map(async (member) => {
+          if (member.name || member.email) return member;
+          try {
+            const res = await getFriendStats(member.userId);
+            if (res.success && res.data) {
+              return {
+                ...member,
+                name: member.name ?? res.data.name,
+                email: member.email || res.data.email || '',
+                studyTime: member.studyTime ?? res.data.totalTime ?? 0,
+              };
+            }
+          } catch {
+            // ignore profile enrichment failures
+          }
+          return member;
+        })
+      );
+      setMembers(enriched);
+    } catch {
+      // ignore profile enrichment failures
+    }
   };
 
   return (
@@ -528,9 +561,19 @@ const GroupScreen: React.FC = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {selectedGroup?.name} 멤버
-            </Text>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>
+                {selectedGroup?.name} 멤버
+              </Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setMembersModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="멤버 목록 닫기"
+              >
+                <Text style={styles.modalCloseButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
               <FlatList
               data={members}
               keyExtractor={(item) => item.id}
@@ -543,7 +586,7 @@ const GroupScreen: React.FC = () => {
                       const res = await getFriendStats(item.userId);
                       if (res.success && res.data) {
                         Alert.alert(
-                          `${item.name || item.email}의 공부 시간`,
+                          `${getMemberDisplayName(item)}의 공부 시간`,
                           `총: ${formatTime(res.data.totalTime ?? 0)}\n` +
                           `오늘: ${formatTime(res.data.todayTime ?? 0)}\n` +
                           `이번 주: ${formatTime(res.data.weeklyTime ?? 0)}\n` +
@@ -560,9 +603,9 @@ const GroupScreen: React.FC = () => {
                 >
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>
-                      {item.name || item.email}
+                      {getMemberDisplayName(item)}
                     </Text>
-                    <Text style={styles.memberEmail}>{item.email}</Text>
+                    {!!item.email && <Text style={styles.memberEmail}>{item.email}</Text>}
                     <Text style={styles.memberTime}>
                       총 공부 시간: {formatTime(item.studyTime || 0)}
                     </Text>
@@ -571,12 +614,6 @@ const GroupScreen: React.FC = () => {
                 </TouchableOpacity>
               )}
             />
-            <TouchableOpacity
-              style={[styles.modalButton, styles.confirmButton]}
-              onPress={() => setMembersModalVisible(false)}
-            >
-              <Text style={styles.modalButtonText}>닫기</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -750,24 +787,25 @@ const styles = StyleSheet.create({
   },
   groupCard: {
     backgroundColor: THEME.backgroundWhite,
-    padding: 16,
+    padding: 18,
     marginHorizontal: 20,
     marginTop: 12,
     borderRadius: 12,
     shadowColor: THEME.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: THEME.border,
   },
   groupInfo: {
     marginBottom: 12,
   },
   groupName: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 19,
+    fontWeight: '700',
     color: THEME.text,
-    marginBottom: 4,
   },
   groupTitleRow: {
     flexDirection: 'row',
@@ -792,21 +830,24 @@ const styles = StyleSheet.create({
     color: THEME.textSecondary,
   },
   groupDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: THEME.textSecondary,
-    marginBottom: 4,
+    marginBottom: 6,
+    lineHeight: 18,
   },
   groupMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 4,
   },
   codeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
-    marginBottom: 4,
-    padding: 8,
+    marginBottom: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     backgroundColor: THEME.background,
     borderRadius: 8,
   },
@@ -837,19 +878,24 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: THEME.border,
+    paddingVertical: 11,
+    borderRadius: 10,
+    backgroundColor: THEME.background,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: THEME.border,
   },
   inviteButton: {
     backgroundColor: THEME.primary,
+    borderColor: THEME.primary,
   },
   leaveButton: {
     backgroundColor: THEME.error,
+    borderColor: THEME.error,
   },
   notificationButton: {
-    backgroundColor: '#FFA500',
+    backgroundColor: '#FFB74D',
+    borderColor: '#FFB74D',
   },
   actionButtonText: {
     color: THEME.text,
@@ -873,7 +919,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     width: '90%',
-    maxHeight: '80%',
+    maxHeight: '82%',
   },
   modalScrollContent: {
     paddingBottom: 24,
@@ -883,6 +929,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: THEME.text,
     marginBottom: 8,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    gap: 8,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: THEME.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 18,
   },
   modalDescription: {
     fontSize: 14,
